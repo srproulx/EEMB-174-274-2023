@@ -59,12 +59,12 @@ $$
 
 If covid is rare, how likely is it that I have covid given that I have symptoms?
 $$
-Pr(\mathrm{covid}|\mathrm{symptoms})= \frac{ 0.001 * 0.3  }{ 0.001*0.3 + 0.02*1 } = 0.015 
+Pr(\mathrm{covid}|\mathrm{symptoms})= \frac{ 0.3 * 0.001   }{ 0.3 * 0.001 + 1 * 0.02 } = 0.015 
 $$
 
 If covid is common, how likely is it that I have covid given that I have symptoms?
 $$
-Pr(\mathrm{covid}|\mathrm{symptoms})= \frac{0.1 * 0.3 }{0.1*0.3 + 0.02*1  } = 0.6
+Pr(\mathrm{covid}|\mathrm{symptoms})= \frac{ 0.3 * 0.1  }{0.3 * 0.1  + 1 * 0.02  } = 0.6
 $$
 
 ### Breakout: explore the shiny app
@@ -78,7 +78,7 @@ Navigate to the "In Class Material" folder and find today's date. Click on the f
 Now consider a case where individuals can have both the flu and covid at the same time. Draw the Venn diagram and write out sentence description of the answer that you get. 
 
 ### One final note:
-Here we considered a situation where someone has flu-like symptoms, and wants to estimate the chances that the symptoms are due to covid. We see that the frequency of both flu and covid in the population as a whole has a ``surprising'' effect on the cacluations. This is very hard to accept based on most of the mathemtatical training you have recieved before. But it is true.
+Here we considered a situation where someone has flu-like symptoms, and wants to estimate the chances that the symptoms are due to covid. We see that the frequency of both flu and covid in the population as a whole has a ``surprising'' effect on the caclulations. This is very hard to accept based on most of the mathemtatical training you have recieved before. But it is true.
 
 We did this example thinking about symptoms, but it is exactly the same problem if we look at tests for the presence of covid. Just replace "has sypmtoms" with "has a positive test result". If people who do not have covid can possibly test positive, and people who do can possibly test negative, then we have the same exact equation, just with different names for the categories. 
 
