@@ -82,7 +82,7 @@ Here we considered a situation where someone has flu-like symptoms, and wants to
 
 We did this example thinking about symptoms, but it is exactly the same problem if we look at tests for the presence of covid. Just replace "has sypmtoms" with "has a positive test result". If people who do not have covid can possibly test positive, and people who do can possibly test negative, then we have the same exact equation, just with different names for the categories. 
 
-This was why, in the early covid days when antibody testing was being used to assess covid prevalence in the population, there was a strong cautionary warning that testing positive did not mean that you had covid, even when the chance of a false postive of the test was low. When almost no one has had covid, almost every postive antibody test is due to a false positive!
+This was why, in the early covid days when antibody testing was being used to assess covid prevalence in the population, there was a strong cautionary warning that testing positive did not mean that you had covid, even when the chance of a false positive of the test was low. When almost no one has had covid, almost every postive antibody test is due to a false positive!
 
 
  ![xkcd https://xkcd.com/2563/](throat_and_nasal_passages.png)
