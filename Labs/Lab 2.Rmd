@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(rethinking)
 ```
-# Bayesian Statistical Modeling Winter 2022
+# Bayesian Statistical Modeling Winter 2023
 ## Lab Exercise, Week 2.5
 ## 1/23/2023
 
