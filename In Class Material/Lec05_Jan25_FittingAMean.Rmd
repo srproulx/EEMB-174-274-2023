@@ -113,7 +113,7 @@ Note: If you have experience programming, you could also do this by doing a loop
 ```{r grid_posterior_setup}
 #code to grid out the posterior
 
-n <- 200 # how many steps to use in the grid.  
+n <- 20 # how many steps to use in the grid.  
 
 d_grid <-
   tibble(mu    = seq(from = 150, to = 160, length.out = n),
