@@ -1,0 +1,360 @@
+---
+title: "Lab 3"
+author: "Stephen R. Proulx"
+date: "12/27/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(rethinking)
+library(bayesplot)
+```
+# Bayesian Statistical Modeling Winter 2021
+# Lab Exercise, Week 3
+# 1/21/2021
+
+*When is this lab due?* Labs are due on the Thursday after they are assigned. However, in many cases you can complete them during the lab period itself.   This assignment is due on Thursday, 1/28/2021. Submit homework to gradescope: *Link here*
+
+
+
+
+### Medicago height data
+We'll use publicly available data from:  https://figshare.com/articles/dataset/Medicago_truncatula_plant_height_data/8018873
+The data we use are heights of the plant *Medicago truncatula*. The experiment in question was looking at the effect of plants on caterpillars, but we will just use the plant height data. It comes in multiple replicate observations, and we'll fit the mean and variance, using a normal distribution for the likelihood, for each replicate separately. 
+
+```{r}
+plant.heights <- read_csv("height.csv") %>% 
+  gather("Rep1","Rep2","Rep3","Rep4","Rep5",key="Replicate",value="height")%>%
+  select(Replicate,height) 
+
+save(plant.heights, file="MedicagoHeights.rds")
+```
+
+
+Load the data
+```{r}
+load("MedicagoHeights.Rds")
+view(plant.heights)
+```
+
+### Visualize and summarize the data
+Plot histrograms or density plots of height for each replicate and summarize the means and standard deviations of each replicate. You may use the `filter` function to pick data from specific replicates, or add `fill=Replicate` to the `aes` directive in ggplot. like this:
+```{r}
+ggplot(  plant.heights    ,aes(x=height,fill=Replicate))  +
+  geom_density(alpha=0.5)
+```
+
+
+### Summarize the replicates
+Summaries can be done using dplyr or by first subsetting the data to get each replicate and then using precis or mean and variance commands. 
+
+```{r}
+plant.heights %>%
+  group_by(Replicate) %>%
+  summarise(mean=mean(height),  sd=sd(height)) 
+```
+
+
+### Fit the different replicates and see how they compare
+We'll use grid approximation to fit the means and standard deviations for each replicate separately. To get you started we'll define the log likelihood function. It requires that the height data be in a dataframe called `dataset` and a column called `height`. 
+
+
+
+```{r define_like_function}
+height_loglik_f <- function(mu_input,sigma_input){
+  sum(dnorm(
+  dataset$height , 
+  mean=mu_input,
+  sd=sigma_input,
+  log=TRUE ))
+}
+
+
+height_loglik_f_vec <- Vectorize(height_loglik_f)
+```
+
+
+Now define a grid of $\mu$ and $\sigma$ values and then go through the same steps that we did in class to calculate the posterior probability for each $\mu$ and $\sigma$ pair.
+
+```{r grid_posterior_setup}
+#code to grid out the posterior
+
+n <- 200 # how many steps to use in the grid.  
+
+d_grid <-
+  tibble(mu    = seq(from = 50, to = 200, length.out = n),
+         sigma = seq(from = 0,   to = 50,   length.out = n)) %>% 
+  # expand can be used to combine all the elements from two rows
+  expand(mu, sigma)
+```
+
+
+replicate 1
+```{r grid_posterior_execution}
+
+dataset <- filter(plant.heights , Replicate=="Rep1") 
+posterior_table1 <- d_grid %>%
+  mutate(log_likelihood=height_loglik_f_vec(mu,sigma),
+         log_prior_mu = dnorm(mu,    mean = 100, sd  = 20, log = T),
+         log_prior_sigma = dunif(sigma, min  = 0,   max = 50, log = T),
+         raw_log_posterior = log_likelihood + log_prior_mu + log_prior_sigma,
+         log_posterior = raw_log_posterior - max(raw_log_posterior) ,
+         raw_posterior = exp(log_posterior),
+         posterior = raw_posterior/sum(raw_posterior))  
+
+
+samples_height_model1 <- sample_n(posterior_table1, weight =posterior, size=1e4, replace=TRUE) %>%
+  select(mu,sigma)
+```
+
+```{r}
+precis(samples_height_model1)
+```
+```{r}
+ bayesplot::mcmc_pairs(samples_height_model1,diag_fun = "dens",
+  off_diag_fun =  "hex") 
+
+```
+
+
+
+
+replicate 2
+```{r }
+
+dataset <- filter(plant.heights , Replicate=="Rep2") 
+posterior_table2 <- d_grid %>%
+  mutate(log_likelihood=height_loglik_f_vec(mu,sigma),
+         log_prior_mu = dnorm(mu,    mean = 100, sd  = 20, log = T),
+         log_prior_sigma = dunif(sigma, min  = 0,   max = 50, log = T),
+         raw_log_posterior = log_likelihood + log_prior_mu + log_prior_sigma,
+         log_posterior = raw_log_posterior - max(raw_log_posterior) ,
+         raw_posterior = exp(log_posterior),
+         posterior = raw_posterior/sum(raw_posterior))  
+
+
+samples_height_model2 <- sample_n(posterior_table2, weight =posterior, size=1e4, replace=TRUE) %>%
+  select(mu,sigma)
+```
+
+
+replicate 3
+```{r }
+
+dataset <- filter(plant.heights , Replicate=="Rep3") 
+posterior_table3 <- d_grid %>%
+  mutate(log_likelihood=height_loglik_f_vec(mu,sigma),
+         log_prior_mu = dnorm(mu,    mean = 100, sd  = 20, log = T),
+         log_prior_sigma = dunif(sigma, min  = 0,   max = 50, log = T),
+         raw_log_posterior = log_likelihood + log_prior_mu + log_prior_sigma,
+         log_posterior = raw_log_posterior - max(raw_log_posterior) ,
+         raw_posterior = exp(log_posterior),
+         posterior = raw_posterior/sum(raw_posterior))  
+
+
+samples_height_model3 <- sample_n(posterior_table3, weight =posterior, size=1e4, replace=TRUE) %>%
+  select(mu,sigma)
+```
+
+replicate 4
+```{r }
+
+dataset <- filter(plant.heights , Replicate=="Rep4") 
+posterior_table4 <- d_grid %>%
+  mutate(log_likelihood=height_loglik_f_vec(mu,sigma),
+         log_prior_mu = dnorm(mu,    mean = 100, sd  = 20, log = T),
+         log_prior_sigma = dunif(sigma, min  = 0,   max = 50, log = T),
+         raw_log_posterior = log_likelihood + log_prior_mu + log_prior_sigma,
+         log_posterior = raw_log_posterior - max(raw_log_posterior) ,
+         raw_posterior = exp(log_posterior),
+         posterior = raw_posterior/sum(raw_posterior))  
+
+
+samples_height_model4 <- sample_n(posterior_table4, weight =posterior, size=1e4, replace=TRUE) %>%
+  select(mu,sigma)
+```
+
+replicate 5
+```{r }
+
+dataset <- filter(plant.heights , Replicate=="Rep5") 
+posterior_table5 <- d_grid %>%
+  mutate(log_likelihood=height_loglik_f_vec(mu,sigma),
+         log_prior_mu = dnorm(mu,    mean = 100, sd  = 20, log = T),
+         log_prior_sigma = dunif(sigma, min  = 0,   max = 50, log = T),
+         raw_log_posterior = log_likelihood + log_prior_mu + log_prior_sigma,
+         log_posterior = raw_log_posterior - max(raw_log_posterior) ,
+         raw_posterior = exp(log_posterior),
+         posterior = raw_posterior/sum(raw_posterior))  
+
+
+samples_height_model5 <- sample_n(posterior_table5, weight =posterior, size=1e4, replace=TRUE) %>%
+  select(mu,sigma)
+```
+
+### Compare the estimates
+Use the methods you have available to quantify the different replicates. What can you say about the similarities or differences between them?
+
+
+```{r}
+HPDI(samples_height_model1$mu)
+HPDI(samples_height_model2$mu)
+
+HPDI(samples_height_model3$mu)
+
+HPDI(samples_height_model4$mu)
+
+HPDI(samples_height_model5$mu)
+
+```
+
+
+```{r}
+HPDI(samples_height_model1$sigma)
+HPDI(samples_height_model2$sigma)
+
+HPDI(samples_height_model3$sigma)
+
+HPDI(samples_height_model4$sigma)
+
+HPDI(samples_height_model5$sigma)
+```
+
+
+```{r}
+mean(samples_height_model1$mu)
+mean(samples_height_model2$mu)
+
+mean(samples_height_model3$mu)
+
+mean(samples_height_model4$mu)
+
+mean(samples_height_model5$mu)
+
+```
+```{r}
+mean(samples_height_model1$sigma)
+mean(samples_height_model2$sigma)
+
+mean(samples_height_model3$sigma)
+
+mean(samples_height_model4$sigma)
+
+mean(samples_height_model5$sigma)
+
+```
+
+
+
+### Posterior simulations
+
+Use the fitted model from replicate 1 to create a posterior simulation. This means that you will sample the values of $\mu$ and $\sigma$, and then produce an observation of 98 plant heights (this is how many observations there are of each replicate), and find the mean of this simulated dataset. Simulate this 1,000 times, and compare the distribution of this mean to the actual mean of replicate 2. Describe what you see, is it what you expected?
+
+
+
+```{r}
+calc_mean_height <- Vectorize(function(mu_input,sigma_input){
+  mean(rnorm(98,mean=mu_input,sd=sigma_input))
+} )
+
+
+```
+
+```{r}
+post_sim1 <- samples_height_model1 %>%
+  mutate(mean.height= calc_mean_height(mu,sigma)) 
+
+ci=HPDI(post_sim1$mean.height)
+```
+
+Compare the mean of the simulated data from replicate 2 to the actual data and mean of actual data from replicate 2
+```{r}
+data=filter(plant.heights,  Replicate=="Rep1") 
+ggplot( post_sim1 ,aes(x=mean.height))   +
+  geom_density(alpha=.4, position = 'identity' , fill="blue") +
+  geom_vline(xintercept=ci[1],color="red")+
+  geom_vline(xintercept=ci[2],color="red")+
+  geom_vline(xintercept=mean(data$height),color="green")
+```
+The above uses a vectorized function, but we can also do it with a loop
+
+```{r}
+simave=tibble(index=seq(1:1e4), mean=NA)
+for(i in 1:1e4){
+curave=  mean(rnorm(98,mean=post_sim1$mu[i],sd=post_sim1$sigma[i]))
+simave$mean[i]=curave
+}
+
+ggplot( simave ,aes(x=mean))   +
+  geom_density(alpha=.4, position = 'identity' , fill="blue") 
+```
+
+Can we also do it with a mutate command without taking these other steps? No, because of the way that R functions expect vectors as arguments and get confused if you mix vector and non-vector input. The following fails, it does one rnorm draw and repeats that value throughout!
+```{r}
+
+(posterior_predictive_data <- post_sim1 %>%
+  mutate(mean_post =mean(rnorm(98,mean=mu,sd=sigma))))
+
+```
+### Extra credit
+Do the sampe procedure for the other replicates. Explain any anomalies.
+
+
+```{r}
+post_sim2 <- samples_height_model2 %>%
+  mutate(mean.height= calc_mean_height(mu,sigma)) 
+
+ci=HPDI(post_sim2$mean.height)
+
+data=filter(plant.heights,  Replicate=="Rep2") 
+ggplot( post_sim2 ,aes(x=mean.height))   +
+  geom_density(alpha=.4, position = 'identity' , fill="blue") +
+  geom_vline(xintercept=ci[1],color="red")+
+  geom_vline(xintercept=ci[2],color="red")+
+  geom_vline(xintercept=mean(data$height),color="green")
+```
+
+```{r}
+post_sim3 <- samples_height_model3 %>%
+  mutate(mean.height= calc_mean_height(mu,sigma)) 
+
+ci=HPDI(post_sim3$mean.height)
+
+data=filter(plant.heights,  Replicate=="Rep3") 
+ggplot( post_sim3 ,aes(x=mean.height))   +
+  geom_density(alpha=.4, position = 'identity' , fill="blue") +
+  geom_vline(xintercept=ci[1],color="red")+
+  geom_vline(xintercept=ci[2],color="red")+
+  geom_vline(xintercept=mean(data$height),color="green")
+```
+
+```{r}
+post_sim4 <- samples_height_model4 %>%
+  mutate(mean.height= calc_mean_height(mu,sigma)) 
+
+ci=HPDI(post_sim4$mean.height)
+
+data=filter(plant.heights,  Replicate=="Rep4") 
+ggplot( post_sim4 ,aes(x=mean.height))   +
+  geom_density(alpha=.4, position = 'identity' , fill="blue") +
+  geom_vline(xintercept=ci[1],color="red")+
+  geom_vline(xintercept=ci[2],color="red")+
+  geom_vline(xintercept=mean(data$height),color="green")
+```
+
+```{r}
+post_sim5 <- samples_height_model5 %>%
+  mutate(mean.height= calc_mean_height(mu,sigma)) 
+
+ci=HPDI(post_sim5$mean.height)
+
+data=filter(plant.heights,  Replicate=="Rep5") 
+ggplot( post_sim5 ,aes(x=mean.height))   +
+  geom_density(alpha=.4, position = 'identity' , fill="blue") +
+  geom_vline(xintercept=ci[1],color="red")+
+  geom_vline(xintercept=ci[2],color="red")+
+  geom_vline(xintercept=mean(data$height),color="green")
+```
