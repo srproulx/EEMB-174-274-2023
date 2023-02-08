@@ -38,13 +38,15 @@ covid_cases <- tibble(name=c("Santa Barbara" , "Goleta", "Santa Maria"), loc=c(1
 
 
 $$
-cases_i \sim \mathrm{binomial}(pop,\mu_i)\\
+\mathrm{cases}_i \sim \mathrm{binomial}(\mathrm{pop}_i,\mu_i)\\
 \mu_i \sim \mathrm{uniform}(0,1)
 $$
 Try writing out the expression for the posterior probability of $\mu$ using your mantra, likelihood * prior / normalization.
 
 
 Here is the way to write this model for `quap`. Important point is that in our dataframe `loc` has the values 1, 2, and 3. This will fail if they are not integers starting at 1.
+
+How does `quap` know to automatically index `cases` and `pop` but not `mu`? It is because `cases` and `pop` appear in our dataframe as columns, but `mu` does not. i.e. because `mu` is a parameter it is assumed to apply to all lines of data unless otherwise specified. 
 ```{r}
 m.covid <- quap( alist(
   cases ~ dbinom(pop,mu[loc]),
