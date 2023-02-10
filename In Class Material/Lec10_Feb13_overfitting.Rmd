@@ -230,14 +230,16 @@ ggplot(data=d, aes(x=mass_std,y=brain_std)) +
 Now you plot the model fit ranges for the higher order models
 
 ### overfitting fish
+
 ```{r}
 
-load("ClownFishData.RData")
+load("../Midterm Assessment/ClownFishData.RData")
 data<- data %>% 
   distinct()%>%
   rowid_to_column("index")
  
 ```
+
 
 Fit the proportion of eggs laid
 ```{r}

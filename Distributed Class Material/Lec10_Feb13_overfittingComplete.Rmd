@@ -341,7 +341,7 @@ ggplot(data=d, aes(x=mass_std,y=brain_std)) +
 ### overfitting fish
 ```{r}
 
-load("../Midterm/ClownFishData.RData")
+load("../Midterm Assessment/ClownFishData.RData")
 data<- data %>% 
   distinct()%>%
   rowid_to_column("index")
