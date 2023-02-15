@@ -45,6 +45,22 @@ ggplot(genotype_freqs, aes(x=p,y=H)) +
 So entropy is near zero if either allele is very common, and reaches it's maximum value when they are equally frequent. If you walked into a population where $p=0.05$ and sampled an individual at random you would already be fairly certain their genotype would be `AA`. If $p=0.5$ you would expect `Aa` more than `AA` or `aa`, but be fairly uncertain which you would get.  
 
 
+What if we don't know the gene frequency correctly? We can compute the cross-entropy based on the difference in the log probabilities of observing those genotypes.
+```{r}
+ptrue=0.1
+qtrue=0.9
+
+
+cross_ent <- tibble(p=seq(from = 0.01, to = 0.99, by =0.01 ))%>%
+  mutate(q = 1-p , 
+         H = abs(ptrue^2 * (log(ptrue^2)-log(p^2))) + 2*ptrue*qtrue * (log(2* ptrue* qtrue )-log(2* p* q )) + qtrue^2 * (log(qtrue^2)-log(q^2)))
+
+
+
+ggplot(cross_ent, aes(x=p,y=H)) +
+  geom_line()+
+  xlab("proposed probability")
+```
 
 ## The path to IC's
 In the lecture and chapter there is a lot of theory on different aspects of assessing model fit. Here is an outline 
