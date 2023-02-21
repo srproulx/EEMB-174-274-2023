@@ -16,7 +16,7 @@ source("../Resources/helper.R")
 # Bayesian Statistical Modeling Winter 2023
 # Homework, Week 6
 
-*When is homework due?* Homework is due on Mondays (Tuesday if Monday is a holiday). This assignment is due on Monday, 2/26/2023. 
+*When is homework due?* Homework is due on Mondays (Tuesday if Monday is a holiday). This assignment is due on Monday, 2/27/2023. 
 
 
 Complete these problems from the end of chapter 7.
