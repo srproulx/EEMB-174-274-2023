@@ -11,32 +11,39 @@ header-includes:
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(rethinking)
-source("../Resources/helper.R")
+source("../helper.R")
 ```
 # Bayesian Statistical Modeling Winter 2023
-# Homework, Week 7
+# Homework, Week 8
 
 *When is homework due?* This assignment is due on Tuesday, 3/6/2023. 
 
 
 Complete these problems from the end of chapter 
 
-## 8E1
+## 9E4
 
 
-## 8E2
+## 9E5
 
 
-## 8E3
+## 9E6
 
 
-## 8M1
+# chapter 10
+Figure 10.6 explains the relationships between the 5 Maximum Entropy probability distributions. The book describes scenarios in which each of these distributions could be thought of as the "least assumption" way to describe the data. Another way of deriving these distributions is by considering a random process where individuals are all considered to be facing the same odds of each outcome. 
+
+## Process producing the binomial:
+Describe how some biological process of interest to you (population size following climate change, reproductive outputs under different experimental conditions, survivorship, outcomes of an experimental treatment, etc.) could result in a Binomial distribution:
+
+## Process producing the Poisson:
+Describe how some biological process of interest to you (population size following climate change, reproductive outputs under different experimental conditions, survivorship, outcomes of an experimental treatment, etc.) could result in a Poisson distribution:
 
 
-## 8M2
+## 10M2
 
 
-## 8M3  
+## 10M3  
 
 
 

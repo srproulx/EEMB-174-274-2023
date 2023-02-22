@@ -11,9 +11,9 @@ header-includes:
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(rethinking)
-source("../helper.R")
+source("../Resources/helper.R")
 ```
-# Bayesian Statistical Modeling Winter 2023
+# Bayesian Statistical Modeling Winter 2022
 # Homework, Week 8
 
 *When is homework due?* This assignment is due on Tuesday, 3/13/2023. 
