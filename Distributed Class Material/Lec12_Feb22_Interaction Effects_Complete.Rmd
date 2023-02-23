@@ -36,6 +36,18 @@ d <- d %>%
   select(log_gdp,rugged,log_gdp_std,rugged_std,country, cont_africa)
 ```
 
+Look at the data:
+```{r}
+
+ggplot(d,aes(x = rugged_std)) +
+  geom_point(aes(y = log_gdp, color = as.factor(cont_africa)),
+             size = 2/3) +
+  xlab("Terrain Ruggedness Index" ) +
+  ylab("log GDP from year 2000") 
+
+```
+
+
  
 ### Separate models
 Run two separate models, one for non-African countries, the other for African countries. 
@@ -198,7 +210,15 @@ precis(m7.5)
 Now use compare to see how they stack up in terms of WAIC.
 ```{r}
 compare(m7.3,m7.4,m7.5 ) 
+
 ```
+```{r}
+mcmc_areas(rethinking::extract.samples(m7.5)%>%
+             as.tibble%>%
+             select(brnA,brA),
+           prob = 0.89)
+```
+
 
 In addition to the fact that WAIC suggests m7.5 is an improvement, we can ask if m7.5 shows different slopes depending on continents. We can see this by taking the contrast bertween the slopes, and see that they do differ.
 ```{r}
