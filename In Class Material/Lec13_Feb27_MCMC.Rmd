@@ -19,7 +19,7 @@ source("../helper.R")
 * See the Metropolis algorithm working
 * Observe what "chains" might look like (and their problems) 
 * Learn the `ulam` syntax
-
+* See how slightly informative (regularizing) priors can improve chain performance
 
 
 
@@ -133,11 +133,6 @@ ggplot(data=combined_chains , aes(x=location))+
   geom_histogram( )
 
 ```
-
-Did combining the chains solve our problem? Not entirely. 
-
-### Try your own surface
-Make up your own "population size surface". You can make it longer or shorter, just make sure to change the part of the program that tracks what to do when we get a proposal above the number of islands in your list. 
 
 
 
