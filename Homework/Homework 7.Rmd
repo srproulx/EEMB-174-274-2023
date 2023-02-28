@@ -18,32 +18,7 @@ source("../Resources/helper.R")
 
 *When is homework due?* This assignment is due on Tuesday, 3/13/2023. 
 
-
-Complete these problems from the end of chapter 
-
-## 9E4
-
-
-## 9E5
-
-
-## 9E6
-
-
-# chapter 10
-Figure 10.6 explains the relationships between the 5 Maximum Entropy probability distributions. The book describes scenarios in which each of these distributions could be thought of as the "least assumption" way to describe the data. Another way of deriving these distributions is by considering a random process where individuals are all considered to be facing the same odds of each outcome. 
-
-## Process producing the binomial:
-Describe how some biological process of interest to you (population size following climate change, reproductive outputs under different experimental conditions, survivorship, outcomes of an experimental treatment, etc.) could result in a Binomial distribution:
-
-## Process producing the Poisson:
-Describe how some biological process of interest to you (population size following climate change, reproductive outputs under different experimental conditions, survivorship, outcomes of an experimental treatment, etc.) could result in a Poisson distribution:
-
-
-## 10M2
-
-
-## 10M3  
+TBD!!!
 
 
 
