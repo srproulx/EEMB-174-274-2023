@@ -101,6 +101,17 @@ bayesplot::mcmc_intervals(select(post,mu_none,mu_HC,mu_HC_AZ))
 
 ```
 
+This is hiding some things because of covariance with the intercept. We can solve this again by looking at the "contrast" between treatments.
+
+```{r}
+post<-mutate(post,delHC=mu_HC-mu_none)
+
+mean(post$delHC)
+
+bayesplot::mcmc_areas(select(post,delHC),prob=0.9)
+
+```
+
 #### full interaction model: just as an example
 ```{r}
 
