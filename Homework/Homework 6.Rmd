@@ -39,11 +39,3 @@ Describe how some biological process of interest to you (population size followi
 ## Process producing the Poisson:
 Describe how some biological process of interest to you (population size following climate change, reproductive outputs under different experimental conditions, survivorship, outcomes of an experimental treatment, etc.) could result in a Poisson distribution:
 
-
-## 10M2
-
-
-## 10M3  
-
-
-
