@@ -22,13 +22,13 @@ source("../helper.R")
 ## Load and process the data
 
 
-Load the dataset. It contains covid case numbers and deaths for all counties in California.
+Load the dataset. It contains Covid case numbers and deaths for all counties in California.
 ```{r}
 load("SB_covid_data_2022.Rdata")
 ```
 
 
-We're going to calculate some new columns that summarize weekly total covid cases. To do this we need to group by the county, and make sure the data are in order by date. The column `delta.days` is the number of days elapsed since data on covid cases were first reporded last winter. 
+We're going to calculate some new columns that summarize weekly total Covid cases. To do this we need to group by the county, and make sure the data are in order by date. The column `delta.days` is the number of days elapsed since data on COVID cases were first reported last winter. 
 
 ```{r}
 county_ca <- group_by(county_ca,county) %>%
@@ -53,7 +53,7 @@ firstday=101
 ```
 
 
-## check out the data
+## Check out the data
 
 This draws a cubic spline fit through the 7-day average case number.
 ```{r , warning=FALSE}
@@ -110,7 +110,7 @@ precis(m.poiss.overall)
 
 Redo it with more chains. Here's the trick to keep from re-compiling. But this only works if you want to run the same specific model. This is helpful, but it doesn't keep all of the information stored in an `ulam` model, so be aware of this limitation.
 ```{r}
-m.poiss.overall.v2 <- stan( fit=m.poiss.overall@stanfit , data=stan_data , chains=4 , iter=3000 )
+m.poiss.overall.v2 <- stan(fit=m.poiss.overall@stanfit , data=stan_data , chains=4 , iter=3000)
 ```
 
 ```{r}
@@ -118,7 +118,7 @@ precis(m.poiss.overall.v2)
 ```
 
 ```{r}
-WAIC(m.poiss.overall.v2)
+WAIC(m.poiss.overall)
 ```
 
 
@@ -163,20 +163,20 @@ bayesplot::mcmc_intervals(tmp,pars=c("theta"))
 ```
 
 
-### part 1: Poisson model with the week's cases as a predictor
-Create a model  where the likelihood model for the daily number of new deaths is Poisson and there is an additive model for the log transformed Poisson parameter. Choose priors based on the range of mean Poisson values that could be produced given the range of the predictor variables. Start with a model where the current week's average covid cases is the only predictor.
+### Part 1: Poisson model with the week's cases as a predictor
+Create a model  where the likelihood model for the daily number of new deaths is Poisson and there is an additive model for the log transformed Poisson parameter. Choose priors based on the range of mean Poisson values that could be produced given the range of the predictor variables. Start with a model where the current week's average Covid cases is the only predictor.
 
-### part 2:
+### Part 2:
 Once you have samples for your model, explain how you can have some confidence that the chains are doing a good job of approximating the posterior distribution.
 
-### part 3
+### Part 3
 Plot the posterior predictions from the model and compare them to the actual data. What do they consistently capture and what do they consistently miss?
 
-### part 4: 
+### Part 4: 
 Now build a series of models with prior week's average case numbers as predictors. 
 Compare the WAIC values of the different models. What can you conclude? What possible confounds should you consider before making any conclusions?
 
 
 
-## bonus du jour: Day of the week effect
-There are several issues with when deaths are reported. They are reported when the coroner confirms it as a covid death, which may be delayed from the actual death. They also may not be reported on some days of the week. Can you test for this effect?
+## Bonus du jour: Day of the week effect
+There are several issues with when deaths are reported. They are reported when the coroner confirms it as a Covid death, which may be delayed from the actual death. They also may not be reported on some days of the week. Can you test for this effect?
