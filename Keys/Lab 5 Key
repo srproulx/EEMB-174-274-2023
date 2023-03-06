@@ -1,0 +1,347 @@
+---
+title: "Lab 5"
+author: "Stephen R. Proulx"
+date: "12/27/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(rethinking)
+```
+# Bayesian Statistical Modeling Winter 2021
+# Lab Exercise, Week 6
+# 2/11/2021
+
+*When is this lab due?* Labs are due on the Thursday after they are assigned. However, in many cases you can complete them during the lab period itself.   This assignment is due on Thursday, 2/18/2021. Submit homework to gradescope: *Link here*
+
+## Remember Hydroxychloroquine?
+Hydroxychloroquine had a few news cycles last spring. Following the first news that it might benefit hospitlized covid patients, an early trial on patients in the hospital with covid was realeased  ( full data here: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7556078/). 
+
+They had patients who either received no drug treatment, received Hydroxychloroquine, or Hydroxychloroquine+Azithromycin. The results were
+
+no drugs: 18 died, 140 discharged 
+HC : 27 died, 70 discharged
+HC+AZ: 25 died, 88 discharged. 
+
+Your goal is to create a model that will allow you to assess the affect of the drug. To do this, we will want to create multiple models that differ in how many parameters they have. The "simplest" model should have one parameter describing the probability of death/discharge for all patients, regardless of drug treatment. More complex models can have distinct effects of having HC or AZ. 
+
+Write out your model in statistical notation, with priors, before computing it. One important techique for computing the model is to note that you can use `(x==i)` type statements within `quap` to determine which parameter gets applied. This works better than `theta[group]` type statements.
+
+Once you have your models, compare them using WAIC. 
+
+
+
+
+
+## Alternative model formulation
+Instead of setting distinct parameters for the groups, you could also choose to set a global mean parameter and then model the difference from that. Something like this:
+`y ~ dnorm(mu,sigma),`
+`mu <- a + (group==1)*deltamu  - (group==2)*deltamu`
+
+
+Once you have the `quap` object, you can then use `mutate` to convert back to the group-specific mean values. 
+
+ 
+
+```{r thedata}
+outcomes = tibble(treatment = c("HC","HC_AZ","None") , 
+                  death = c(27,25,18) , 
+                  discharge = c(70,88,140) , 
+                  coded_treatment = c(1,2,3))  
+```
+
+```{r}
+m.HC.one <- quap(alist(
+  death ~ dbinom( death+discharge , mu),
+  mu ~ dunif(0,1)),
+  data=outcomes
+)
+
+precis(m.HC.one)
+```
+```{r}
+m.HC.two <- quap(alist(
+  death ~ dbinom( death+discharge , mu ),
+  mu <- mu1 * (coded_treatment <3) +  mu2 * (coded_treatment ==3), 
+  mu1 ~ dunif(0,1),
+  mu2 ~ dunif(0,1)),
+  data=outcomes
+)
+
+precis(m.HC.two )
+```
+
+``{r}
+m.HC.two <- quap(alist(
+  death ~ dbinom( death+discharge , mu ),
+  mu <- mu1 * (coded_treatment <3) +  mu2 * (coded_treatment ==3), 
+  mu1 ~ dunif(0,1),
+  mu2 ~ dunif(0,1)),
+  data=outcomes
+)
+
+precis(m.HC.two )
+```
+
+```{r}
+m.HC.three <- quap(alist(
+  death ~ dbinom( death+discharge , mu ),
+  mu <- mu1 * (coded_treatment ==1) +  mu2 * (coded_treatment ==2)+  mu3 * (coded_treatment ==3), 
+  mu1 ~ dunif(0,1),  
+  mu2 ~ dunif(0,1),
+  mu3 ~ dunif(0,1)),
+  data=outcomes
+)
+
+precis(m.HC.three )
+```
+
+```{r}
+compare(m.HC.one, m.HC.two, m.HC.three)
+```
+
+
+Now use a difference between the classes 
+```{r}
+m.HC.delta <- quap(alist(
+  death ~ dbinom( death+discharge , mu ),
+  mu <- mu0+ delmu * (coded_treatment <3) -  delmu * (coded_treatment ==3) , 
+  mu0 ~ dbeta(2,2),  
+  delmu ~ dnorm(0,0.2)),
+  data=outcomes
+)
+
+precis(m.HC.delta )
+
+rethinking::pairs(m.HC.delta)
+```
+
+
+```{r}
+samps.HC.delta<-extract.samples(m.HC.delta) %>% as_tibble() %>%
+  mutate(mu1=mu0+delmu,mu2=mu0-delmu)
+precis(samps.HC.delta)
+
+bayesplot::mcmc_intervals( samps.HC.delta)
+
+```
+
+
+
+Now use a difference between the classes 
+```{r}
+m.HC.delta <- quap(alist(
+  death ~ dbinom( death+discharge , mu ),
+  logit(mu) <- mu0+ delmu * (coded_treatment <3) -  delmu * (coded_treatment ==3) , 
+  mu0 ~ dnorm(0,5),  
+  delmu ~ dnorm(0,1)),
+  data=outcomes
+)
+
+precis(m.HC.delta )
+
+rethinking::pairs(m.HC.delta)
+```
+
+```{r}
+samps.HC.delta<-extract.samples(m.HC.delta) %>% as_tibble() %>%
+  mutate(mu1=inv_logit(mu0+delmu),mu2=inv_logit(mu0-delmu))
+precis(samps.HC.delta)
+
+bayesplot::mcmc_intervals( samps.HC.delta , pars=c("mu1","mu2"))
+
+```
+
+```{r}
+sum(outcomes$death)/(sum(outcomes$discharge)+sum(outcomes$death))
+
+ mutate(outcomes,prop=death/(death+discharge))
+```
+
+
+
+## model comparison
+
+```{r thedata}
+outcomes = tibble(treatment = c("HC","HC_AZ","None") , 
+                  death = c(27,25,18) , 
+                  discharge = c(70,88,140) , 
+                  coded_treatment = c(1,2,3))  
+```
+
+
+
+ Here is a model where each treatment group has it's own independent mu value. This is really equivalent to running three different models, because no information is really shared between the parameters. This would not be the case if the priors were about the relationships between the parameters somehow.
+```{r write_stan}
+sink("model_treat_effect.stan")
+cat("
+    
+  data {
+  int <lower=1> N; // number of rows in our data matrix
+  int <lower=0> death[N]; // vector of death data
+  int <lower=0> discharge[N]; // vector of discharge data
+  int <lower=0> coded_treatment[N];//the coded treatment level
+
+}
+parameters {
+  real <lower=0,upper=1> mu[N]; // define the parameter for the probability of survival, there is one independent for each category.
+}
+
+model {
+//priors
+mu ~ uniform(0,1); //uniform prior
+
+for(i in 1:N){
+death[i] ~ binomial(death[i]+discharge[i] ,mu[i]);
+}
+
+}
+ 
+    
+    
+    ",fill = TRUE)
+sink()
+
+
+```
+
+
+
+```{r run_stan_1 , echo=FALSE}
+
+
+stan_data <- c(outcomes[c("death","discharge","coded_treatment")], list(N = 3))
+
+
+
+stanfit_chloroquine <- stan('model_treat_effect.stan', data = stan_data, chains = 4,
+                      iter = 4000, seed = 2131231)
+```
+
+ 
+```{r print_stan_1}
+
+print(stanfit_chloroquine ,pars=c("mu"))
+pairs(stanfit_chloroquine ,pars=c("mu"))
+
+
+mcmc_areas(stanfit_chloroquine,area_method = "equal height",prob=.95,pars=c("mu[1]","mu[2]","mu[3]"))
+
+```
+
+
+TO make things a little simpler and make it easier to ask our question we can combine the two categories with HC (i.e. HC and HC+AZ)
+```{r run_stan_2 , echo=FALSE}
+
+
+outcomes = tibble(treatment = c("HC","None") , 
+                  death = c(27+25,18) , 
+                  discharge = c(70+88,140) , 
+                  coded_treatment = c(1,2))  
+
+
+stan_data <- c(outcomes[c("death","discharge","coded_treatment")], list(N = 2))
+
+
+
+stanfit_chloroquine2 <- stan('model_treat_effect.stan', data = stan_data, chains = 4,
+                      iter = 4000, seed = 2131231)
+```
+
+
+```{r print_stan_2 }
+
+print(stanfit_chloroquine2 ,pars=c("mu"))
+pairs(stanfit_chloroquine2 ,pars=c("mu"))
+
+
+mcmc_areas(stanfit_chloroquine2,area_method = "equal height",prob=.95,pars=c("mu[1]","mu[2]"))
+
+```
+
+
+
+Here we do the work to see if the two parameters are really different. We do this by getting just the list of sampled parameters using the extract function, and then looking at the difference between the two parameters for each sampled parameter set. Becasue there is no correlation among mu's, this really doesn't change our interpretation.
+```{r diff_plot }
+
+ post=extract(stanfit_chloroquine2) %>% as_tibble() %>% select(- "lp__") %>% mutate(diff = mu[2]-mu[1]) 
+
+post=as.data.frame(stanfit_chloroquine2) %>% as_tibble() %>% select(- "lp__")%>% 
+  rename(mu1="mu[1]",mu2="mu[2]") %>% 
+  mutate(diff = mu2-mu1) 
+
+
+
+mcmc_areas(post, area_method = "equal height",  prob=.95)
+
+```
+
+
+
+
+## Lumping the HC together and modeling the difference in death rate between no-treatment and HC
+This one assumes there are only two treatment types, lumping the HC and HC+AZ together. It also models the no treatment and HC group death rates as an additive difference on the global mean, on the logit scale. This means that we have a parameter, mu, which is on the normal probability scale (i.e. between 0 and 1) and a treatment effect on the logit scale, so between -Infinity and Infinity. This works by transforming mu with the logit function: logit(mu), then adding the displacement parameter, rho, then inverse transforming back to the probability scale with inv_logit.
+```{r write_stan_2}
+sink("model_treat_effect_diff2.stan")
+cat("
+    
+  data {
+  int <lower=1> N; // number of rows in our data matrix
+  int <lower=0> death[N]; // vector of death data
+  int <lower=0> discharge[N]; // vector of discharge data
+  int <lower=0> coded_treatment[N];//the coded treatment level
+  real <lower=0> rho_prior; // sd for rho
+
+  }
+  transformed data{
+  real indicator_treatment[N];
+  for(i in 1:N){
+  indicator_treatment[i] = (coded_treatment[i] == 0 ) * (-1) + (coded_treatment[i] == 1)*1;
+  }
+  }
+parameters {
+  real <lower=0,upper=1> mu; // define the parameter for the probability of survival overall
+  real rho; // this parameter will be the difference between the groups and the overall mean. It is over-parameterized, but that's ok!
+}
+
+model {
+//priors
+mu ~ uniform(0,1); //uniform prior
+rho ~ normal(0,rho_prior); // Strong prior that there is not a difference between treatments. 
+
+for(i in 1:N){
+death[i] ~ binomial(death[i]+discharge[i] ,inv_logit( logit(mu) + rho *indicator_treatment[i] ) );
+}
+
+}
+ 
+    
+    
+    ",fill = TRUE)
+sink()
+
+
+```
+
+
+```{r}
+
+stan_data <- c(outcomes[c("death","discharge","coded_treatment")], list(N = 2 , rho_prior=.5))
+
+
+
+stanfit_chloroquine_diff <- stan('model_treat_effect_diff2.stan', data = stan_data, chains = 8,
+                      iter = 10000, seed = 2131231)
+```
+```{r print_stan_2 }
+
+print(stanfit_chloroquine_diff ,pars=c("mu","rho"))
+pairs(stanfit_chloroquine_diff ,pars=c("mu","rho"))
+
+
+mcmc_areas(stanfit_chloroquine_diff,area_method = "equal height",prob=.95,pars=c("mu","rho"))
+
+```
