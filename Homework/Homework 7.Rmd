@@ -13,12 +13,18 @@ library(tidyverse)
 library(rethinking)
 source("../Resources/helper.R")
 ```
-# Bayesian Statistical Modeling Winter 2022
-# Homework, Week 8
+# Bayesian Statistical Modeling Winter 2023
+# Homework, Week 9
 
-*When is homework due?* This assignment is due on Tuesday, 3/13/2023. 
+*When is homework due?* This assignment is due on Monday, 3/13/2023. 
 
-TBD!!!
+Complete these problems from the end of chapter 
+
+## 13E2
+
+## 13E3
+
+## 13E4
 
 
 
