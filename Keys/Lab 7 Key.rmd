@@ -1,0 +1,412 @@
+---
+title: "Lab 7"
+author: "Stephen R. Proulx"
+date: "12/27/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(rethinking)
+library(bayesplot)
+source("helper.R")
+```
+# Bayesian Statistical Modeling Winter 2021
+# Lab Exercise, Week 7
+# 2/18/2021
+
+*When is this lab due?* Labs are due on the Thursday after they are assigned. However, in many cases you can complete them during the lab period itself.   This assignment is due on Thursday, 2/25/2021. Submit homework to gradescope.
+
+## Load and process the data
+
+
+Load the dataset. It contains covid case numbers and deaths for all counties in California.
+```{r}
+load("SB_covid_data_2022.Rdata")
+```
+
+We're going to calculate some new columns that summarize weekly total covid cases. To do this we need to group by the county, and make sure the data are in order by date. The column `delta.days` is the number of days elapsed since data on coid cases was first reporded last winter. 
+
+```{r}
+county_ca <- group_by(county_ca,county) %>%
+  arrange(delta.days) %>%
+  mutate(new_cases = cases-lag(cases), 
+         week_cases=(cases-lag(cases,7))/7, 
+         week_old_cases=(lag(cases,7)-lag(cases,14))/7, 
+         two_week_old_cases=(lag(cases,14)-lag(cases,21))/7,
+         three_week_old_cases=(lag(cases,21)-lag(cases,28))/7,
+         four_week_old_cases=(lag(cases,28)-lag(cases,35))/7,
+         new_deaths = deaths-lag(deaths)) %>%
+  ungroup()
+```
+
+We are now going to pull out the Santa Barbara county data, but only since day 100. We will also standardize our potential predictor variables. 
+```{r}
+firstday=101
+  
+  sb_data<-filter(county_ca,delta.days>firstday,county == "Santa Barbara", state=="California")%>% 
+  view()
+
+```
+
+
+## check out the data
+
+This draws a cubic spline fit through the 7-day average case number.
+```{r , warning=FALSE}
+firstday=101
+maxday=398
+ssvals <- smooth.spline(x=sb_data$delta.days, y= sb_data$week_cases, df=15)
+spline_data <- tibble( delta.days=ssvals$x, week_cases = ssvals$y)
+ 
+
+ggplot(data=sb_data, aes(x=delta.days,y= week_cases/7)) +
+  geom_point()+
+  geom_line(data=spline_data,color="red")+
+  scale_y_continuous( limits=c(1,600) )+
+  scale_x_continuous(limits=c(firstday,maxday))+
+  labs( x="days since Jan 22" , y="7-day average cases")
+
+
+```
+```{r}
+ggplot(data=sb_data, aes(x=delta.days,y=new_deaths )) +
+  geom_point()+
+  scale_y_continuous( limits=c(-2,40) )+
+  scale_x_continuous(limits=c(firstday,maxday))+
+  labs( x="days since Jan 22" , y="deaths")
+
+```
+
+Now we'll prune down some of the columns we are keeping and remove any negative numbers (these are due to corrections in the reporting after the fact and sometimes make it appear that people were un-dead)
+```{r}
+stan_data <- select(sb_data,new_cases, week_cases ,week_old_cases, two_week_old_cases, three_week_old_cases, four_week_old_cases, new_deaths) %>%
+  mutate(new_deaths= new_deaths * (new_deaths>0) ) %>%
+  mutate(NC=standardize(new_cases),
+         W0=standardize(week_cases),
+         W1=standardize(week_old_cases),
+         W2=standardize(two_week_old_cases),
+         W3=standardize(three_week_old_cases),
+         W4=standardize(four_week_old_cases))%>%
+  rowid_to_column(var="index") 
+```
+
+
+## Example: Fitting the overall mortality with a Poisson 
+```{r}
+m.poiss.overall <- ulam(alist(
+   new_deaths ~ dpois(theta),
+   log(theta) <- log_theta,
+   log_theta ~ dnorm(0,2)
+),data=stan_data , log_lik = TRUE)
+```
+
+```{r}
+precis(m.poiss.overall)
+```
+
+Redo it with more chains. Here's the trick to keep from re-compiling. But this only works if you want to run the same specific model. This is helpful, but it doesn't keep all of the information stored in an `ulam` model, so be aware of this limitation.
+```{r}
+m.poiss.overall.v2 <- stan( fit=m.poiss.overall@stanfit , data=stan_data , chains=4 , iter=3000 )
+```
+
+```{r}
+precis(m.poiss.overall.v2)
+```
+
+```{r}
+WAIC(m.poiss.overall.v2)
+```
+
+
+How does it compare to our data?
+
+```{r}
+sim_out_wide<-rethinking::sim(m.poiss.overall,data=stan_data)
+
+ndays <- nrow(stan_data)
+
+sim_out<-as_tibble(sim_out_wide) %>% 
+  gather( "index","deaths",1:(ndays)) %>%
+  separate(index,c("V","number"),sep=1) %>%
+  mutate(number=as.numeric(number))
+```
+
+```{r}
+sim_summarized <- group_by(sim_out,number) %>%
+  summarise(deaths_mean=mean(deaths),
+            deaths_lower = quantile(deaths,0.05),
+            deaths_upper = quantile(deaths,0.95))%>%
+  ungroup()
+            
+```
+
+
+```{r}
+ggplot(sim_summarized, aes(x=number,y=deaths_mean))+
+  geom_point()+
+  geom_errorbar( aes(ymin=deaths_lower,ymax=deaths_upper))+
+  geom_point(data=stan_data, aes(x=index,y=new_deaths), color="red")
+```
+
+
+## Poisson GLM with new cases as the predictor variable
+
+
+```{r}
+m.poiss.death <- ulam( alist(
+  new_deaths ~ dpois(theta),
+  log(theta) <-a + NC * b,
+  a ~ dnorm(0,5),
+  b ~ dnorm(0,0.1)
+),data=stan_data , chains=4, cores=4, iter = 3000, log_lik=TRUE)
+
+precis(m.poiss.death)
+
+```
+```{r}
+rethinking::pairs(m.poiss.death)
+```
+
+How does it compare to our data?
+
+```{r}
+sim_out_wide<-rethinking::sim(m.poiss.death,data=stan_data)
+
+ndays <- nrow(stan_data)
+
+sim_out<-as_tibble(sim_out_wide) %>% 
+  gather( "index","deaths",1:(ndays)) %>%
+  separate(index,c("V","number"),sep=1) %>%
+  mutate(number=as.numeric(number))
+```
+
+```{r}
+sim_summarized <- group_by(sim_out,number) %>%
+  summarise(deaths_mean=mean(deaths),
+            deaths_lower = quantile(deaths,0.05),
+            deaths_upper = quantile(deaths,0.95))%>%
+  ungroup()
+            
+```
+
+
+```{r}
+ggplot(sim_summarized, aes(x=number,y=deaths_mean))+
+  geom_point()+
+  geom_errorbar( aes(ymin=deaths_lower,ymax=deaths_upper))+
+  geom_point(data=stan_data, aes(x=index,y=new_deaths), color="red")
+```
+
+
+## A  model with last weeks case data
+```{r}
+m.poiss.death_1 <- ulam( alist(
+  new_deaths ~ dpois(theta),
+  log(theta) <-a + W0 * b_0+ W1 * b_1  ,
+  a ~ dnorm(0,5),
+  b_0 ~ dnorm(0,0.1),
+  b_1 ~ dnorm(0,0.1)
+),data=stan_data ,  chains=4, cores=4, iter = 3000,
+log_lik = TRUE)
+
+```
+```{r}
+pairs(m.poiss.death_1)
+```
+```{r}
+sim_out_wide<-rethinking::sim(m.poiss.death_1,data=stan_data)
+
+ndays <- nrow(stan_data)
+
+sim_out<-as_tibble(sim_out_wide) %>% 
+  gather( "index","deaths",1:(ndays)) %>%
+  separate(index,c("V","number"),sep=1) %>%
+  mutate(number=as.numeric(number))
+ 
+sim_summarized <- group_by(sim_out,number) %>%
+  summarise(deaths_mean=mean(deaths),
+            deaths_lower = quantile(deaths,0.05),
+            deaths_upper = quantile(deaths,0.95))%>%
+  ungroup()
+            
+ 
+ggplot(sim_summarized, aes(x=number,y=deaths_mean))+
+  geom_point()+
+  geom_errorbar( aes(ymin=deaths_lower,ymax=deaths_upper))+
+  geom_point(data=stan_data, aes(x=index,y=new_deaths), color="red")
+```
+
+```{r}
+
+tmp<-extract(m.poiss.death_1@stanfit) %>% as_tibble() %>%
+  mutate(tot_b=exp(b_0)+exp(b_1),
+         f_b_0=exp(b_0)/tot_b,
+         f_b_1=exp(b_1)/tot_b )
+  
+bayesplot::mcmc_intervals(tmp,pars=c("f_b_0","f_b_1"))
+```
+
+
+## A  model with last 2 weeks case data
+```{r}
+m.poiss.death_2 <- ulam( alist(
+  new_deaths ~ dpois(theta),
+  log(theta) <-a + W0 * b_0+ W1 * b_1 + W2 * b_2  ,
+  a ~ dnorm(0,5),
+  b_0 ~ dnorm(0,0.1),
+  b_1 ~ dnorm(0,0.1),
+  b_2 ~ dnorm(0,0.1)
+),data=stan_data ,  chains=4, cores=4, iter = 3000,
+log_lik = TRUE)
+
+```
+```{r}
+precis(m.poiss.death_2)
+```
+
+```{r}
+pairs(m.poiss.death_2)
+```
+```{r}
+sim_out_wide<-rethinking::sim(m.poiss.death_2,data=stan_data)
+
+ndays <- nrow(stan_data)
+
+sim_out<-as_tibble(sim_out_wide) %>% 
+  gather( "index","deaths",1:(ndays)) %>%
+  separate(index,c("V","number"),sep=1) %>%
+  mutate(number=as.numeric(number))
+ 
+sim_summarized <- group_by(sim_out,number) %>%
+  summarise(deaths_mean=mean(deaths),
+            deaths_lower = quantile(deaths,0.05),
+            deaths_upper = quantile(deaths,0.95))%>%
+  ungroup()
+            
+ 
+ggplot(sim_summarized, aes(x=number,y=deaths_mean))+
+  geom_point()+
+  geom_errorbar( aes(ymin=deaths_lower,ymax=deaths_upper))+
+  geom_point(data=stan_data, aes(x=index,y=new_deaths), color="red")
+```
+
+
+
+
+## A  model with last 3 weeks case data
+```{r}
+m.poiss.death_3 <- ulam( alist(
+  new_deaths ~ dpois(theta),
+  log(theta) <-a + W0 * b_0+ W1 * b_1 + W2 * b_2 + W3 * b_3  ,
+  a ~ dnorm(0,5),
+  b_0 ~ dnorm(0,0.1),
+  b_1 ~ dnorm(0,0.1),
+  b_2 ~ dnorm(0,0.1),
+  b_3 ~ dnorm(0,0.1)
+),data=stan_data ,  chains=4, cores=4, iter = 3000,
+log_lik = TRUE)
+
+```
+```{r}
+precis(m.poiss.death_3)
+```
+
+```{r}
+pairs(m.poiss.death_3)
+```
+```{r}
+sim_out_wide<-rethinking::sim(m.poiss.death_3,data=stan_data)
+
+ndays <- nrow(stan_data)
+
+sim_out<-as_tibble(sim_out_wide) %>% 
+  gather( "index","deaths",1:(ndays)) %>%
+  separate(index,c("V","number"),sep=1) %>%
+  mutate(number=as.numeric(number))
+ 
+sim_summarized <- group_by(sim_out,number) %>%
+  summarise(deaths_mean=mean(deaths),
+            deaths_lower = quantile(deaths,0.05),
+            deaths_upper = quantile(deaths,0.95))%>%
+  ungroup()
+            
+ 
+ggplot(sim_summarized, aes(x=number,y=deaths_mean))+
+  geom_point()+
+  geom_errorbar( aes(ymin=deaths_lower,ymax=deaths_upper))+
+  geom_point(data=stan_data, aes(x=index,y=new_deaths), color="red")
+```
+
+
+## A  model with last 4 weeks case data
+```{r}
+m.poiss.death_4 <- ulam( alist(
+  new_deaths ~ dpois(theta),
+  log(theta) <-a + W0 * b_0+ W1 * b_1 + W2 * b_2 + W3 * b_3 + W4 * b_4  ,
+  a ~ dnorm(0,5),
+  b_0 ~ dnorm(0,0.1),
+  b_1 ~ dnorm(0,0.1),
+  b_2 ~ dnorm(0,0.1),
+  b_3 ~ dnorm(0,0.1),
+  b_4 ~ dnorm(0,0.1)
+),data=stan_data ,  chains=4, cores=4, iter = 3000,
+log_lik = TRUE)
+
+```
+```{r}
+precis(m.poiss.death_4)
+```
+
+```{r}
+pairs(m.poiss.death_4)
+```
+```{r}
+sim_out_wide<-rethinking::sim(m.poiss.death_4,data=stan_data)
+
+ndays <- nrow(stan_data)
+
+sim_out<-as_tibble(sim_out_wide) %>% 
+  gather( "index","deaths",1:(ndays)) %>%
+  separate(index,c("V","number"),sep=1) %>%
+  mutate(number=as.numeric(number))
+ 
+sim_summarized <- group_by(sim_out,number) %>%
+  summarise(deaths_mean=mean(deaths),
+            deaths_lower = quantile(deaths,0.05),
+            deaths_upper = quantile(deaths,0.95))%>%
+  ungroup()
+            
+ 
+ggplot(sim_summarized, aes(x=number,y=deaths_mean))+
+  geom_point()+
+  geom_errorbar( aes(ymin=deaths_lower,ymax=deaths_upper))+
+  geom_point(data=stan_data, aes(x=index,y=new_deaths), color="red")
+```
+
+```{r}
+
+tmp<-extract(m.poiss.death_4@stanfit) %>% as_tibble() %>%
+  mutate(tot_b=exp(b_0)+exp(b_1)+exp(b_2)+exp(b_3)+exp(b_4),
+         f_b_0=exp(b_0)/tot_b,
+         f_b_1=exp(b_1)/tot_b,
+         f_b_2=exp(b_2)/tot_b ,
+         f_b_3=exp(b_3)/tot_b ,
+         f_b_4=exp(b_4)/tot_b  )
+  
+bayesplot::mcmc_intervals(tmp,pars=c("f_b_0","f_b_1","f_b_2","f_b_3","f_b_4"))
+```
+
+## compare the models
+
+```{r}
+compare(m.poiss.death_4,m.poiss.death_3,m.poiss.death_2,m.poiss.death_1,m.poiss.death)
+```
+
+
+
+
+### bonus du jour: Day of the week effect
+There are several issues with when deaths are reported. They are reported when the coroner confirms it as a covid death, which may be delayed from the actual death. They also may not be reported on some days of the week. Can you test for this effect?
