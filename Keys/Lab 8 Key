@@ -1,0 +1,282 @@
+---
+title: "Lab 8"
+author: "Stephen R. Proulx"
+date: "3/3/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(rethinking)
+library(bayesplot)
+source("../helper.R")
+```
+# Bayesian Statistical Modeling Winter 2021
+# Lab Exercise, Week 9
+# 3/8/2023
+
+
+## Load and process the data
+
+```{r}
+library(rethinking) 
+data(reedfrogs)
+d <- reedfrogs
+dat <- list(
+S = d$surv,
+n = d$density,
+tank = 1:nrow(d),
+P = ifelse( d$pred=="no" , 0L , 1L ), 
+ts = ifelse( d$size=="small" , 0L , 1L ),
+dtreat = ifelse( d$density=="10" , 1L , ifelse( d$density=="25"  , 2L ,3L) )
+) %>%view()
+```
+
+
+## Model 1
+
+```{r}
+m1.1 <- ulam( alist(
+S ~ binomial( n , p ),
+logit(p) <- abar+ a[tank] *sigma ,
+a[tank] ~ normal(0,1 ), 
+abar ~ normal( 0 , 1.5 ),
+sigma ~ exponential( 1 )
+), data=dat , chains=4 , cores=4 , iter=3000, log_lik=TRUE )
+```
+
+```{r}
+precis(m1.1)
+```
+
+This is the simulation if we use the inferred tank-specific values.
+```{r}
+sim.m1 <- sim_df(m1.1, data=dat)
+ 
+
+sim.m1.sum<- sim.m1 %>%
+  group_by(tank)%>%
+  summarise(
+    sbar=mean(S)/mean(n),
+    slow=quantile(S/n,0.1),
+    shigh=quantile(S/n,0.9),
+    nbar=mean(n),
+    pred=mean(P)
+  )%>%
+  ungroup()
+
+ggplot(sim.m1.sum, aes(x=tank, y=sbar))+
+  geom_point(aes(shape=as.factor(pred),color=as.factor(nbar)))+
+  geom_errorbar(aes(ymin=slow,ymax=shigh))+
+  geom_point(data=dat,aes(x=tank,y=S/n),color="purple")
+
+```
+
+
+
+
+## Model 2
+```{r}
+# pred
+m1.2 <- ulam( alist(
+S ~ binomial( n , p ),
+logit(p) <- abar+ bp*P+ a[tank] *sigma ,
+bp~ normal(0,1),
+a[tank] ~ normal(0, 1 ), 
+abar ~ normal( 0 , 1.5 ),
+sigma ~ exponential( 5 )
+), data=dat , chains=4 , cores=4 , iter=3000, log_lik=TRUE )
+```
+```{r}
+precis(m1.2)
+```
+
+
+What does WAIC say about our new model?
+```{r}
+compare(m1.1,m1.2)
+```
+
+This is the simulation if we use the inferred tank-specific values.
+```{r}
+sim.m2 <- sim_df(m1.2, data=dat)
+ 
+
+sim.m2.sum<- sim.m2 %>%
+  group_by(tank)%>%
+  summarise(
+    sbar=mean(S)/mean(n),
+    slow=quantile(S/n,0.1),
+    shigh=quantile(S/n,0.9),
+    nbar=mean(n),
+    pred=mean(P)
+  )%>%
+  ungroup()
+
+ggplot(sim.m2.sum, aes(x=tank, y=sbar))+
+  geom_point(aes(shape=as.factor(pred),color=as.factor(nbar)))+
+  geom_errorbar(aes(ymin=slow,ymax=shigh))+
+  geom_point(data=dat,aes(x=tank,y=S/n),color="purple")
+
+```
+
+
+## Model 3
+
+```{r}
+# size
+m1.3 <- ulam( alist(
+S ~ binomial( n , p ),
+logit(p) <- abar+ bs*ts+ a[tank] *sigma ,
+bs~ normal(0,1),
+a[tank] ~ normal(0, 1 ), 
+abar ~ normal( 0 , 1.5 ),
+sigma ~ exponential( 5 )
+), data=dat , chains=4 , cores=4 , iter=3000, log_lik=TRUE )
+```
+
+
+```{r}
+precis(m1.3)
+```
+
+WAIC comparison of model 1.3 and 1.1
+```{r}
+compare(m1.1,m1.3)
+```
+
+
+```{r}
+sim.m3 <- sim_df(m1.3, data=dat)
+ 
+
+sim.m3.sum<- sim.m3 %>%
+  group_by(tank)%>%
+  summarise(
+    sbar=mean(S)/mean(n),
+    slow=quantile(S/n,0.1),
+    shigh=quantile(S/n,0.9),
+    nbar=mean(n),
+    pred=mean(P)
+  )%>%
+  ungroup()
+
+ggplot(sim.m3.sum, aes(x=tank, y=sbar))+
+  geom_point(aes(shape=as.factor(pred),color=as.factor(nbar)))+
+  geom_errorbar(aes(ymin=slow,ymax=shigh))+
+  geom_point(data=dat,aes(x=tank,y=S/n),color="purple")
+
+```
+
+## Model 4
+```{r}
+# pred + size
+m1.4 <- ulam( alist(
+S ~ binomial( n , p ),
+logit(p) <- abar+ bs*ts + bp*P+ a[tank] *sigma ,
+bs~ normal(0,1),
+bp~ normal(0,1),
+a[tank] ~ normal(0, 1 ), 
+abar ~ normal( 0 , 1.5 ),
+sigma ~ exponential( 5 )
+), data=dat , chains=4 , cores=4 , iter=3000, log_lik=TRUE )
+```
+
+
+
+```{r}
+precis(m1.4)
+```
+
+
+
+WAIC comparison of model 1.2 and 1.3 and 1.4
+```{r}
+compare(m1.2,m1.3,m1.4)
+```
+
+```{r}
+sim.m4 <- sim_df(m1.4, data=dat)
+ 
+
+sim.m4.sum<- sim.m4 %>%
+  group_by(tank)%>%
+  summarise(
+    sbar=mean(S)/mean(n),
+    slow=quantile(S/n,0.1),
+    shigh=quantile(S/n,0.9),
+    nbar=mean(n),
+    pred=mean(P)
+  )%>%
+  ungroup()
+
+ggplot(sim.m4.sum, aes(x=tank, y=sbar))+
+  geom_point(aes(shape=as.factor(pred),color=as.factor(nbar)))+
+  geom_errorbar(aes(ymin=slow,ymax=shigh))+
+  geom_point(data=dat,aes(x=tank,y=S/n),color="purple")
+
+```
+
+## Model 5
+
+
+```{r}
+# pred + size + interaction
+m1.5 <- ulam( alist(
+S ~ binomial( n , p ),
+logit(p) <- abar+ bs*ts + bp*P + gamma*ts*P+ a[tank] *sigma ,
+bs~ normal(0,1),
+bp~ normal(0,1),
+gamma ~ normal(0,1),
+a[tank] ~ normal(0, 1 ), 
+abar ~ normal( 0 , 1.5 ),
+sigma ~ exponential( 5 )
+), data=dat , chains=4 , cores=4 , iter=3000, log_lik=TRUE )
+```
+
+
+
+```{r}
+precis(m1.5)
+```
+
+
+
+WAIC comparison of model 1.2 and 1.4 and 1.5
+```{r}
+compare(m1.2,m1.4,m1.5)
+```
+```{r}
+sim.m5 <- sim_df(m1.5, data=dat)
+ 
+
+sim.m5.sum<- sim.m5 %>%
+  group_by(tank)%>%
+  summarise(
+    sbar=mean(S)/mean(n),
+    slow=quantile(S/n,0.1),
+    shigh=quantile(S/n,0.9),
+    nbar=mean(n),
+    pred=mean(P)
+  )%>%
+  ungroup()
+
+ggplot(sim.m5.sum, aes(x=tank, y=sbar))+
+  geom_point(aes(shape=as.factor(pred),color=as.factor(nbar)))+
+  geom_errorbar(aes(ymin=slow,ymax=shigh))+
+  geom_point(data=dat,aes(x=tank,y=S/n),color="purple")
+
+```
+
+
+## compare all the parameters from all the models.
+
+Find the row for sigma in the table of coefficients. This will show us how much sigma has gone down in the multilevel models.
+```{r}
+
+coeftab( m1.1 , m1.2 , m1.3 , m1.4 , m1.5 )
+ 
+```
+
